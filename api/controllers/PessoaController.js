@@ -1,10 +1,20 @@
 const database = require("../models");
 
 class PessoaController {
+  static async getAllPeopleActive(req, res) {
+    try {
+      // findAll => pode receber um objeto
+      const allPeopleActive = await database.Pessoas.findAll();
+      return res.status(200).json(allPeopleActive);
+    } catch (error) {
+      return res.status(500).send({ error: error });
+    }
+  }
+
   static async getAllPeople(req, res) {
     try {
       // findAll => pode receber um objeto
-      const allPeople = await database.Pessoas.findAll();
+      const allPeople = await database.Pessoas.scope("todos").findAll();
       return res.status(200).json(allPeople);
     } catch (error) {
       return res.status(500).send({ error: error });
@@ -55,12 +65,26 @@ class PessoaController {
     const { id } = req.params;
     try {
       // return quantity of the items deleted
-      const deletePerson = await database.Pessoas.destroy({ where: { id } });
+      const deletePerson = await database.Pessoas.destroy({
+        where: { id: Number(id) },
+      });
 
       return res.status(200).json({
         user_delete: deletePerson,
         message: "person deleted successfully",
       });
+    } catch (error) {
+      return res.status(500).send({ error: error });
+    }
+  }
+
+  static async restorePersonRemoved(req, res) {
+    const { id } = req.params;
+    try {
+      await database.Pessoas.restore({ where: { id: Number(id) } });
+      return res
+        .status(200)
+        .json({ mensagem: `id ${id} restored successfully` });
     } catch (error) {
       return res.status(500).send({ error: error });
     }
@@ -122,6 +146,40 @@ class PessoaController {
 
       return res.status(200).json({
         user_delete: deletePerson,
+        message: "person deleted successfully",
+      });
+    } catch (error) {
+      return res.status(500).send({ error: error });
+    }
+  }
+
+  static async restauraMatricula(req, res) {
+    const { estudanteId, matriculaId } = req.params;
+    try {
+      await database.Matriculas.restore({
+        where: {
+          id: Number(matriculaId),
+          estudante_id: Number(estudanteId),
+        },
+      });
+      return res.status(200).json({ mensagem: `id ${id} restaurado` });
+    } catch (error) {
+      return res.status(500).json(error.message);
+    }
+  }
+
+  static async getMatricula(req, res) {
+    const { estudanteId } = req.params;
+    try {
+      // return quantity of the items deleted
+      const findStudent = await database.Pessoas.findOne({
+        where: { id: Number(estudanteId) },
+      });
+
+      const student = await findStudent.getaulasMatriculadas();
+
+      return res.status(200).json({
+        user_matricula: student,
         message: "person deleted successfully",
       });
     } catch (error) {

@@ -3,12 +3,39 @@ module.exports = (sequelize, DataTypes) => {
   const Pessoas = sequelize.define(
     "Pessoas",
     {
-      nome: DataTypes.STRING,
+      nome: {
+        type: DataTypes.STRING,
+        validate: {
+          fnValidator: function (dado) {
+            if (dado.length < 3)
+              throw new Error("Name must be more than 3 characters");
+          },
+        },
+      },
       ativo: DataTypes.BOOLEAN,
-      email: DataTypes.STRING,
+      email: {
+        type: DataTypes.STRING,
+        validate: {
+          isEmail: {
+            args: true,
+            msg: "Email address is invalid",
+          },
+        },
+      },
       role: DataTypes.STRING,
     },
-    { paranoid: true }
+    {
+      paranoid: true,
+      defaultScope: {
+        where: { ativo: true },
+      },
+      scopes: {
+        todos: {
+          where: {},
+          // etc: {constraint: valor}
+        },
+      },
+    }
   );
   Pessoas.associate = function (models) {
     // quem vai dentro como argumento é: Quem irá "consumir" as informações
@@ -19,6 +46,8 @@ module.exports = (sequelize, DataTypes) => {
 
     Pessoas.hasMany(models.Matriculas, {
       foreignKey: "estudante_id",
+      scope: { status: "confirmado" },
+      as: "aulasMatriculadas",
     });
 
     // behavior default of the ORM: se não passar nada => cria no bando = PessoaId
