@@ -8,7 +8,7 @@ module.exports = (sequelize, DataTypes) => {
       email: DataTypes.STRING,
       role: DataTypes.STRING,
     },
-    {}
+    { paranoid: true }
   );
   Pessoas.associate = function (models) {
     // quem vai dentro como argumento é: Quem irá "consumir" as informações
