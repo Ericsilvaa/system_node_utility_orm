@@ -1,10 +1,14 @@
-const database = require("../models");
+// const database = require("../models");
+// const Sequelize = require("sequelize");
+
+const { PessoasServices } = require("../services");
+const pessoasServices = new PessoasServices();
 
 class PessoaController {
   static async getAllPeopleActive(req, res) {
     try {
       // findAll => pode receber um objeto
-      const allPeopleActive = await database.Pessoas.findAll();
+      const allPeopleActive = await pessoasServices.getRegisterActive();
       return res.status(200).json(allPeopleActive);
     } catch (error) {
       return res.status(500).send({ error: error });
@@ -14,7 +18,7 @@ class PessoaController {
   static async getAllPeople(req, res) {
     try {
       // findAll => pode receber um objeto
-      const allPeople = await database.Pessoas.scope("todos").findAll();
+      const allPeople = await pessoasServices.getAllRegister();
       return res.status(200).json(allPeople);
     } catch (error) {
       return res.status(500).send({ error: error });
@@ -24,9 +28,8 @@ class PessoaController {
   static async getPerson(req, res) {
     const { id } = req.params;
     try {
-      const person = await database.Pessoas.findOne({
-        where: { id: Number(id) },
-      });
+      const person = await pessoasServices.getOneRegister({ id: Number(id) });
+
       return res.status(200).json(person);
     } catch (error) {
       return res.status(500).send({ error: error });
@@ -46,13 +49,15 @@ class PessoaController {
   static async updatePerson(req, res) {
     const { id } = req.params;
     const updatePerson = req.body;
-    try {
-      await database.Pessoas.update(updatePerson, {
-        where: { id: Number(id) },
-      });
 
-      const personUpdated = database.Pessoas.findOne({
-        where: { id: Number(id) },
+    try {
+      const update = await pessoasServices.updateRegister(updatePerson, {
+        id: Number(id),
+      });
+      console.log("update", update);
+
+      const personUpdated = await pessoasServices.getOneRegister({
+        id: Number(id),
       });
 
       return res.status(200).json(personUpdated);
@@ -92,17 +97,6 @@ class PessoaController {
 
   // TODO: Matriculas!!!
   // matricula está aqui, pois não será inserido nada nela sozinha, apenas terá associations info of others tables.
-  static async getPersonByMatricula(req, res) {
-    const { estudanteId, matriculaId } = req.params;
-    try {
-      const person = await database.Matriculas.findOne({
-        where: { id: Number(matriculaId), estudante_id: Number(estudanteId) },
-      });
-      return res.status(200).json(person);
-    } catch (error) {
-      return res.status(500).send({ error: error });
-    }
-  }
 
   static async createMatricula(req, res) {
     const { estudanteId } = req.params;
@@ -182,6 +176,75 @@ class PessoaController {
         user_matricula: student,
         message: "person deleted successfully",
       });
+    } catch (error) {
+      return res.status(500).send({ error: error });
+    }
+  }
+
+  static async getMatriculaByTurma(req, res) {
+    const { turmaId } = req.params;
+    // const { limit, order } = req.query;
+
+    try {
+      const allMatriculas = await database.Matriculas.findAndCountAll({
+        where: { turma_id: Number(turmaId), status: "confirmado" },
+        limit: 10,
+        // order: [["estudante_id", "ASC or DESC"]],
+      });
+      /* 
+        {
+          where: {},
+          limit: 10,
+          order: [["coluna", "ASC or DESC"]]
+        }
+      */
+      return res.status(200).json(allMatriculas);
+    } catch (error) {
+      return res.status(500).send({ error: error });
+    }
+  }
+
+  static async getFullClasses(req, res) {
+    const lotacaoTurma = 3;
+
+    try {
+      const fullClasses = await database.Matriculas.findAndCountAll({
+        where: { status: "confirmado" },
+        attributes: ["turma_id"],
+        group: ["turma_id"],
+        having: Sequelize.literal(`count(turma_id) >= ${lotacaoTurma}`),
+        // usando comandos sequelize no having!
+        // Fica assim: Pedindo para contar, quantas turmas id´s são maiores ou iguais q a lotacao
+      });
+      return res.status(200).json(fullClasses);
+    } catch (error) {
+      return res.status(500).send({ error: error });
+    }
+  }
+
+  static async canceledPerson(req, res) {
+    const { estudanteId } = req.params;
+
+    try {
+      await pessoasServices.canceledPersonAndMatriculas(estudanteId);
+      // database.Sequelize.Transaction(async (transacao) => {
+      // acessar duas tabelas e fazer updates
+      // await database.Pessoas.update(
+      //   { ativo: false },
+      //   { where: { id: Number(estudanteId) } },
+      //   { transaction: transacao }
+      // );
+
+      // await database.Matriculas.update(
+      //   { status: "cancelado" },
+      //   { where: { estudante_id: Number(estudanteId) } },
+      //   { transaction: transacao }
+      // );
+
+      return res.status(200).json({
+        message: `Matriculas ref. estudante ${estudanteId} canceladas`,
+      });
+      // });
     } catch (error) {
       return res.status(500).send({ error: error });
     }
